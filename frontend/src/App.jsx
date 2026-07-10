@@ -251,6 +251,7 @@ export default function App() {
       if (notifyEnabled && typeof Notification !== "undefined") {
         new Notification(`${sourceLabel(item)} — עדכון חדש`, {
           body: item.title,
+          icon: item.image_url || undefined,
         });
       }
     });
@@ -478,6 +479,8 @@ export default function App() {
 }
 
 function NewsFeed({ items, freshIds }) {
+  const [brokenImages, setBrokenImages] = useState(new Set());
+
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -493,8 +496,16 @@ function NewsFeed({ items, freshIds }) {
           key={item.id}
           className={`news-item ${freshIds.has(item.id) ? "fresh" : ""}`}
         >
-          {item.image_url ? (
-            <img className="thumb" src={item.image_url} alt="" loading="lazy" />
+          {item.image_url && !brokenImages.has(item.id) ? (
+            <img
+              className="thumb"
+              src={item.image_url}
+              alt=""
+              loading="lazy"
+              onError={() =>
+                setBrokenImages((prev) => new Set(prev).add(item.id))
+              }
+            />
           ) : (
             <div className="ph-box">תמונה</div>
           )}

@@ -32,7 +32,9 @@ function processNewLines(newText) {
       link: "",
       content: record.text || "",
       published_at: new Date(record.date || record.received_at).toISOString(),
-      image_url: null, // הליסנר של טלגרם לא שולף מדיה כרגע
+      // תמונת הפרופיל של הערוץ, מורדת מראש ע"י telegram_listener.py.
+      // אם היא לא קיימת בפועל, ה-<img> בפרונט נופל חזרה לפלייסהולדר.
+      image_url: record.channel ? `/avatars/${record.channel}.jpg` : null,
       dedupe_key: `telegram:${record.channel}:${record.message_id}`,
     };
 

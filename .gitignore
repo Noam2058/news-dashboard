@@ -11,6 +11,7 @@ telegram/.env
 telegram/*.session
 telegram/*.session-journal
 telegram/messages.jsonl
+telegram/avatars/
 
 # database (נוצר מקומית בזמן ריצה)
 backend/news.db

@@ -33,8 +33,24 @@ CHANNELS = [
 
 OUTPUT_FILE = "messages.jsonl"
 SESSION_NAME = "news_session"  # קובץ session שנוצר אחרי אימות ראשוני
+AVATAR_DIR = "avatars"  # תמונות הפרופיל של הערוצים, מוגשות ע"י הבקאנד תחת /avatars
 
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+
+
+async def download_avatars():
+    """מוריד את תמונת הפרופיל של כל ערוץ פעם אחת (מדלג אם כבר קיימת)."""
+    os.makedirs(AVATAR_DIR, exist_ok=True)
+    for channel in CHANNELS:
+        path = os.path.join(AVATAR_DIR, f"{channel}.jpg")
+        if os.path.exists(path):
+            continue
+        try:
+            result = await client.download_profile_photo(channel, file=path)
+            if result:
+                print(f"[avatar] הורדה תמונת פרופיל: {channel}")
+        except Exception as e:
+            print(f"[avatar] שגיאה בהורדת תמונה עבור {channel}: {e}")
 
 
 def save_message(channel_name: str, message) -> None:
@@ -59,6 +75,7 @@ async def handler(event):
 
 async def main():
     await client.start(phone=PHONE)
+    await download_avatars()
     print("מחובר לטלגרם. מאזין לערוצים:", ", ".join(CHANNELS))
     print("לעצירה: Ctrl+C")
     await client.run_until_disconnected()

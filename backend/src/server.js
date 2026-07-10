@@ -1,16 +1,22 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import { getRecentItems, pruneOldItems, NEWS_MAX_AGE_HOURS } from "./db.js";
 import { startRssPolling } from "./rssPoller.js";
 import { startTelegramWatcher } from "./telegramTail.js";
 import { startMarketPolling, getMarketSnapshot } from "./marketData.js";
 import bus from "./eventBus.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
+
+// תמונות הפרופיל של ערוצי הטלגרם - מורדות ע"י telegram_listener.py
+app.use("/avatars", express.static(path.join(__dirname, "..", "..", "telegram", "avatars")));
 
 // --- REST API ---
 
