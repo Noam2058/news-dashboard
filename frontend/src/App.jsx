@@ -65,7 +65,8 @@ function Num({ children }) {
 
 function formatValue(value) {
   return value.toLocaleString("en-US", {
-    maximumFractionDigits: value > 100 ? 1 : 2,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }
 
