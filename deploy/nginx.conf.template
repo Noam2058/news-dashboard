@@ -1,0 +1,34 @@
+# החלף/י את DOMAIN_PLACEHOLDER בדומיין האמיתי, ואז שים/י את הקובץ
+# ב-/etc/nginx/sites-available/news-dashboard והפעל/י אותו (ראה DEPLOY.md).
+server {
+    listen 80;
+    listen [::]:80;
+    server_name DOMAIN_PLACEHOLDER www.DOMAIN_PLACEHOLDER;
+
+    root /opt/news-dashboard/frontend/dist;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # SSE - זרם עדכונים חי, דורש כיבוי buffering וטיים-אאוט ארוך
+    location /api/stream {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding off;
+        proxy_read_timeout 24h;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
