@@ -109,6 +109,8 @@ export default function App() {
   );
   const [now, setNow] = useState(new Date());
   const [activeTab, setActiveTab] = useState("news");
+  // ברוחב מובייל הרשימה מתחילה מצומצמת; ברוחב דסקטופ ה-CSS מתעלם מהמצב הזה ומציג תמיד.
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const [theme, setTheme] = useState(
     () => localStorage.getItem("theme") || "light"
   );
@@ -368,8 +370,16 @@ export default function App() {
       <div className="body-grid">
         {/* sidebar */}
         <div className="sidebar">
-          <div className="side-label">מקורות</div>
-          <div className="source-list">
+          <button
+            type="button"
+            className="side-label toggle-label"
+            onClick={() => setSourcesOpen((v) => !v)}
+            aria-expanded={sourcesOpen}
+          >
+            מקורות
+            <span className={`chevron ${sourcesOpen ? "open" : ""}`}>‹</span>
+          </button>
+          <div className={`source-list ${sourcesOpen ? "" : "collapsed"}`}>
             <div
               className={`source-row ${filter === "all" ? "active" : ""}`}
               onClick={() => setFilter("all")}
