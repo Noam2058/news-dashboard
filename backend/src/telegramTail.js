@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { insertNewsItem } from "./db.js";
+import { insertNewsItem, isFresh } from "./db.js";
 import bus from "./eventBus.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,6 +35,9 @@ function processNewLines(newText) {
       dedupe_key: `telegram:${record.channel}:${record.message_id}`,
     };
 
+    // מגן מפני הצפה של הודעות ישנות כ"חדשות" אחרי ריסטארט לשרת
+    // (שמאפס את lastSize וגורם לקריאה מחדש של כל הקובץ מההתחלה).
+    if (!isFresh(item.published_at)) continue;
     const inserted = insertNewsItem(item);
     if (inserted) {
       bus.emit("new-item", inserted);

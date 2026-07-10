@@ -1,5 +1,5 @@
 import Parser from "rss-parser";
-import { insertNewsItem } from "./db.js";
+import { insertNewsItem, isFresh } from "./db.js";
 import bus from "./eventBus.js";
 
 const parser = new Parser();
@@ -74,6 +74,10 @@ async function pollSource(source) {
         published_at: new Date(publishedAt).toISOString(),
         dedupe_key: `rss:${source.name}:${entry.link || entry.guid || entry.title}`,
       };
+      // כתבה שכבר ישנה כשאנחנו רואים אותה לראשונה מדולגת - היא תימחק
+      // ב-prune הקרוב בכל מקרה, ואם ניתן לה להיכנס היא רק תוחזר כ"חדשה"
+      // בפולינג הבא כל עוד היא נשארת בפיד המקור (ראה pruneOldItems ב-db.js).
+      if (!isFresh(item.published_at)) continue;
       const inserted = insertNewsItem(item);
       if (inserted) {
         bus.emit("new-item", inserted);

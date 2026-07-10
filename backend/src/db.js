@@ -55,11 +55,21 @@ const pruneStmt = db.prepare(
   `DELETE FROM news_items WHERE published_at < datetime('now', ?)`
 );
 
+// חייב להיות תואם לגיל שאחריו pruneOldItems מוחק כתבות (ראה server.js).
+// כתבה ישנה מזה לא נכנסת מלכתחילה - אחרת אחרי שהיא נמחקת, פולינג הבא
+// שעדיין רואה אותה במקור (RSS/טלגרם) יכניס אותה מחדש כ"כתבה חדשה".
+export const NEWS_MAX_AGE_HOURS = 12;
+
+export function isFresh(publishedAtIso) {
+  const ageMs = Date.now() - new Date(publishedAtIso).getTime();
+  return ageMs < NEWS_MAX_AGE_HOURS * 60 * 60 * 1000;
+}
+
 /**
  * מוחק כתבות/הודעות שפורסמו לפני יותר מ-maxAgeHours שעות.
  * שומר את הפיד "רזה" ומונע הצטברות אינסופית של דאטה ישן.
  */
-export function pruneOldItems(maxAgeHours = 12) {
+export function pruneOldItems(maxAgeHours = NEWS_MAX_AGE_HOURS) {
   const result = pruneStmt.run(`-${maxAgeHours} hours`);
   return result.changes;
 }

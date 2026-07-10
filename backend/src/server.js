@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { getRecentItems, pruneOldItems } from "./db.js";
+import { getRecentItems, pruneOldItems, NEWS_MAX_AGE_HOURS } from "./db.js";
 import { startRssPolling } from "./rssPoller.js";
 import { startTelegramWatcher } from "./telegramTail.js";
 import { startMarketPolling, getMarketSnapshot } from "./marketData.js";
@@ -61,7 +61,6 @@ app.get("/api/stream", (req, res) => {
   });
 });
 
-const NEWS_MAX_AGE_HOURS = 12;
 const PRUNE_INTERVAL_MS = 30 * 60 * 1000; // בודקים כל 30 דקות, מוחקים כל מה שעבר את גיל 12 השעות
 
 function pruneNews() {
