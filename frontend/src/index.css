@@ -663,21 +663,30 @@ body {
   .body-grid {
     grid-template-columns: 1fr;
   }
+  /* מובילות/מקורות הן רשימות אנכיות (עמודה) - משאירים אותן בעמודה במקום
+     לשבור אותן לשורה עם flex-wrap, שדוחס הכל לצד אחד ומשאיר חלל ריק בשני. */
   .sidebar,
   .aside {
     border: none;
     border-bottom: 1px solid var(--rule);
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
   }
   .ticker-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  /* ממרכזים את הכותרת העליונה (לוגו, טאבים, שעה) ברוחב טלפון/טאבלט */
+  .nameplate {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .tabs {
+    justify-content: center;
+  }
   /* clock-group (שעה + מזג אוויר + כפתור מצב כהה) הוא יחידה שלא נשברת -
-     ברוחב טלפון היא רחבה מדי ודוחפת את כל העמוד הצידה. נותנים לה לגלוש לשורה נוספת. */
+     ברוחב טלפון היא רחבה מדי ודוחפת את כל העמוד הצידה. נותנים לה לגלוש לשורה נוספת וממרכזים. */
   .clock-group {
     flex-wrap: wrap;
+    justify-content: center;
     row-gap: 8px;
   }
 }
