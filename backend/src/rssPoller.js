@@ -2,7 +2,24 @@ import Parser from "rss-parser";
 import { insertNewsItem, isFresh } from "./db.js";
 import bus from "./eventBus.js";
 
-const parser = new Parser();
+const parser = new Parser({
+  customFields: { item: [["media:content", "mediaContent"], "image"] },
+});
+
+// כל מקור מפרסם את התמונה בצורה שונה בפיד - חולצים לפי source.name.
+function extractImage(entry, sourceName) {
+  if (sourceName === "globes") {
+    return entry.mediaContent?.$?.url || null;
+  }
+  if (sourceName === "n12") {
+    return entry.image || null;
+  }
+  if (sourceName === "ynet") {
+    const match = (entry.content || "").match(/<img[^>]+src=["']([^"']+)["']/i);
+    return match ? match[1] : null;
+  }
+  return null;
+}
 
 // ---- מקורות RSS ----
 // כתובת גלובס נבדקה ועובדת (מדור "כל הכתבות").
@@ -78,6 +95,7 @@ async function pollSource(source) {
         link: entry.link || "",
         content: entry.contentSnippet || entry.content || "",
         published_at: new Date(publishedAt).toISOString(),
+        image_url: extractImage(entry, source.name),
         dedupe_key: `rss:${source.name}:${entry.link || entry.guid || entry.title}`,
       };
       // כתבה שכבר ישנה כשאנחנו רואים אותה לראשונה מדולגת - היא תימחק

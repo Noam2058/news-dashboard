@@ -493,7 +493,11 @@ function NewsFeed({ items, freshIds }) {
           key={item.id}
           className={`news-item ${freshIds.has(item.id) ? "fresh" : ""}`}
         >
-          <div className="ph-box">תמונה</div>
+          {item.image_url ? (
+            <img className="thumb" src={item.image_url} alt="" loading="lazy" />
+          ) : (
+            <div className="ph-box">תמונה</div>
+          )}
           <div className="news-body">
             <div className="news-meta">
               <span className={`source-tag ${item.source_type}`}>

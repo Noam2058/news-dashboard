@@ -32,6 +32,7 @@ function processNewLines(newText) {
       link: "",
       content: record.text || "",
       published_at: new Date(record.date || record.received_at).toISOString(),
+      image_url: null, // הליסנר של טלגרם לא שולף מדיה כרגע
       dedupe_key: `telegram:${record.channel}:${record.message_id}`,
     };
 

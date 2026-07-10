@@ -22,10 +22,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_published_at ON news_items(published_at DESC);
 `);
 
+// מיגרציה: מוסיפים עמודת image_url לבסיסי נתונים ישנים שנוצרו לפני הפיצ'ר הזה.
+const existingColumns = db.prepare(`PRAGMA table_info(news_items)`).all();
+if (!existingColumns.some((c) => c.name === "image_url")) {
+  db.exec(`ALTER TABLE news_items ADD COLUMN image_url TEXT`);
+}
+
 const insertStmt = db.prepare(`
   INSERT OR IGNORE INTO news_items
-    (source_type, source_name, title, link, content, published_at, dedupe_key)
-  VALUES (@source_type, @source_name, @title, @link, @content, @published_at, @dedupe_key)
+    (source_type, source_name, title, link, content, published_at, image_url, dedupe_key)
+  VALUES (@source_type, @source_name, @title, @link, @content, @published_at, @image_url, @dedupe_key)
 `);
 
 /**
