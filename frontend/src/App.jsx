@@ -233,7 +233,11 @@ export default function App() {
 
     es.addEventListener("new-item", (event) => {
       const item = JSON.parse(event.data);
-      setItems((prev) => [item, ...prev]);
+      setItems((prev) => {
+        const next = [item, ...prev.filter((it) => it.id !== item.id)];
+        next.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+        return next;
+      });
 
       setFreshIds((prev) => new Set(prev).add(item.id));
       setTimeout(() => {
