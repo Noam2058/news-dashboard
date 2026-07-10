@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from telethon import TelegramClient, events
+from telethon import TelegramClient, events, utils
 
 load_dotenv()
 
@@ -48,7 +48,9 @@ async def resolve_channels():
     for channel in CHANNELS:
         try:
             entity = await client.get_entity(channel)
-            CHANNEL_USERNAMES[entity.id] = channel
+            # event.chat_id מחזיר את ה-id "המסומן" (marked, שלילי לערוצים) -
+            # לא את entity.id הגולמי - צריך utils.get_peer_id כדי שהמפתחות יתאימו.
+            CHANNEL_USERNAMES[utils.get_peer_id(entity)] = channel
         except Exception as e:
             print(f"[resolve] שגיאה בזיהוי הערוץ {channel}: {e}")
 
