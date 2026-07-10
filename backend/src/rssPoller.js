@@ -54,6 +54,12 @@ const RSS_SOURCES = [
     url: "", // TODO: להשלים כתובת RSS פעילה כשתימצא
     enabled: false,
   },
+  {
+    name: "ynet",
+    label: "Ynet",
+    url: "https://www.ynet.co.il/Integration/StoryRss2.xml",
+    enabled: true,
+  },
 ];
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 דקות

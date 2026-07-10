@@ -5,6 +5,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:4000";
 const SOURCE_LABELS = {
   globes: "גלובס",
   n12: "N12",
+  ynet: "Ynet",
 };
 
 function sourceLabel(item) {
