@@ -116,7 +116,6 @@ export default function App() {
   );
   const [market, setMarket] = useState({
     tickers: [],
-    commodities: [],
     bonds: [],
     movers: [],
     exchangeRows: [],
@@ -297,7 +296,7 @@ export default function App() {
     setNotifyEnabled(perm === "granted");
   }
 
-  const marqueeItems = [...market.tickers, ...market.commodities];
+  const marqueeItems = market.tickers;
   const marqueeLoop = marqueeItems.concat(marqueeItems);
 
   return (
@@ -550,14 +549,69 @@ function NewsFeed({ items, freshIds }) {
 }
 
 function MarketsTab({ market }) {
+  const [editing, setEditing] = useState(false);
+  const [newSymbol, setNewSymbol] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleRemove(id) {
+    setBusy(true);
+    try {
+      await fetch(`${API_BASE}/api/watchlist/${id}`, { method: "DELETE" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    const symbol = newSymbol.trim();
+    if (!symbol) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/watchlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol, label: newLabel.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "שגיאה בהוספה");
+        return;
+      }
+      setNewSymbol("");
+      setNewLabel("");
+    } catch {
+      setError("שגיאת רשת");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="markets-tab">
-      <div className="side-label" style={{ marginBottom: 14 }}>
-        מדדים ומטבעות · זמן אמת
+      <div className="side-label row" style={{ marginBottom: 14 }}>
+        <span>מדדים, מטבעות וסחורות · זמן אמת</span>
+        <button type="button" className="edit-link" onClick={() => setEditing((v) => !v)}>
+          {editing ? "סיום עריכה" : "עריכה"}
+        </button>
       </div>
       <div className="ticker-grid">
         {market.tickers.map((t) => (
           <div className="ticker-card" key={t.id}>
+            {editing && (
+              <button
+                type="button"
+                className="ticker-remove"
+                onClick={() => handleRemove(t.id)}
+                aria-label={`הסר ${t.label}`}
+                disabled={busy}
+              >
+                ✕
+              </button>
+            )}
             <div className="ticker-card-label">{t.label}</div>
             <div className="ticker-card-value">
               <Num>{formatValue(t.value)}</Num>
@@ -568,19 +622,28 @@ function MarketsTab({ market }) {
           </div>
         ))}
       </div>
-      <div className="side-label" style={{ margin: "24px 0 10px" }}>
-        סחורות
-      </div>
-      <div className="commodities-list">
-        {market.commodities.map((c) => (
-          <div className="commodity-row" key={c.id}>
-            <span style={{ fontWeight: 600 }}>{c.label}</span>
-            <span style={{ color: changeColor(c.change), fontWeight: 700 }}>
-              <Num>${formatValue(c.value)}</Num> <Num>{formatChange(c.change)}</Num>
-            </span>
-          </div>
-        ))}
-      </div>
+      {editing && (
+        <form className="ticker-add-form" onSubmit={handleAdd}>
+          <input
+            type="text"
+            placeholder="סימול (למשל AAPL)"
+            value={newSymbol}
+            onChange={(e) => setNewSymbol(e.target.value)}
+            disabled={busy}
+          />
+          <input
+            type="text"
+            placeholder="תווית (אופציונלי)"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            disabled={busy}
+          />
+          <button type="submit" disabled={busy || !newSymbol.trim()}>
+            הוסף
+          </button>
+          {error && <span className="ticker-add-error">{error}</span>}
+        </form>
+      )}
     </div>
   );
 }

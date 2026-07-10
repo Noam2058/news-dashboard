@@ -1,24 +1,12 @@
 import bus from "./eventBus.js";
+import { getWatchlist } from "./watchlist.js";
 
 // כל הנתונים כאן נשלפים מ-Yahoo Finance (chart API ציבורי, ללא מפתח).
 // זהו endpoint לא רשמי של Yahoo - עובד היטב לשימוש אישי אך עלול להשתנות/להיחסם.
 
 const HEADERS = { "User-Agent": "Mozilla/5.0 (news-dashboard personal use)" };
 
-const INDICES = [
-  { id: "ta35", symbol: "TA35.TA", label: 'ת"א 35' },
-  { id: "ta125", symbol: "^TA125.TA", label: 'ת"א 125' },
-  { id: "usd", symbol: "ILS=X", label: "דולר/שקל" },
-  { id: "eur", symbol: "EURILS=X", label: "יורו/שקל" },
-  { id: "sp500", symbol: "^GSPC", label: "S&P 500" },
-  { id: "btc", symbol: "BTC-USD", label: "ביטקוין" },
-];
-
-const COMMODITIES = [
-  { id: "gold", symbol: "GC=F", label: "זהב (אונקיה)" },
-  { id: "oil", symbol: "CL=F", label: "נפט ברנט (חבית)" },
-  { id: "silver", symbol: "SI=F", label: "כסף (אונקיה)" },
-];
+// רשימת הטיקר הנע (מדדים/מטבעות/סחורות) ניתנת לעריכה ע"י המשתמש - ראה watchlist.js.
 
 const BONDS = [{ id: "us10y", symbol: "^TNX", label: '10 שנים · ארה"ב' }];
 
@@ -51,7 +39,6 @@ const CHANNELS_POLL_MS = 6 * 60 * 60 * 1000; // תשואות 12 חודש - כל 
 
 let snapshot = {
   tickers: [],
-  commodities: [],
   bonds: [],
   movers: [],
   exchangeRows: [],
@@ -104,35 +91,24 @@ function pctChange(meta) {
 
 async function pollQuotes() {
   try {
-    const [indicesRes, commoditiesRes, bondsRes, stocksRes] = await Promise.all([
-      Promise.allSettled(INDICES.map((s) => fetchChart(s.symbol))),
-      Promise.allSettled(COMMODITIES.map((s) => fetchChart(s.symbol))),
+    const watchlist = getWatchlist();
+    const [watchlistRes, bondsRes, stocksRes] = await Promise.all([
+      Promise.allSettled(watchlist.map((s) => fetchChart(s.symbol))),
       Promise.allSettled(BONDS.map((s) => fetchChart(s.symbol))),
       Promise.allSettled(STOCKS.map((s) => fetchChart(s.symbol))),
     ]);
 
-    const tickers = INDICES.map((def, i) => {
-      const r = indicesRes[i];
+    const tickers = watchlist.map((def, i) => {
+      const r = watchlistRes[i];
       if (r.status !== "fulfilled") return null;
       const meta = r.value;
       return {
-        id: def.id,
+        id: String(def.id),
+        symbol: def.symbol,
         label: def.label,
         value: normalizePrice(meta),
         change: pctChange(meta),
         currency: meta.currency,
-      };
-    }).filter(Boolean);
-
-    const commodities = COMMODITIES.map((def, i) => {
-      const r = commoditiesRes[i];
-      if (r.status !== "fulfilled") return null;
-      const meta = r.value;
-      return {
-        id: def.id,
-        label: def.label,
-        value: normalizePrice(meta),
-        change: pctChange(meta),
       };
     }).filter(Boolean);
 
@@ -163,7 +139,6 @@ async function pollQuotes() {
     snapshot = {
       ...snapshot,
       tickers,
-      commodities,
       bonds,
       movers,
       exchangeRows: stockRows,
@@ -195,6 +170,16 @@ async function pollChannels() {
 
 export function getMarketSnapshot() {
   return snapshot;
+}
+
+// בודק שסימול קיים ב-Yahoo לפני שמוסיפים אותו לרשימת המעקב, ומציע תווית ברירת מחדל.
+export async function validateSymbol(symbol) {
+  const meta = await fetchChart(symbol);
+  return { suggestedLabel: meta.shortName || meta.longName || symbol };
+}
+
+export async function refreshMarketData() {
+  await pollQuotes();
 }
 
 export function startMarketPolling() {

@@ -5,7 +5,13 @@ import { fileURLToPath } from "url";
 import { getRecentItems, pruneOldItems, NEWS_MAX_AGE_HOURS } from "./db.js";
 import { startRssPolling } from "./rssPoller.js";
 import { startTelegramWatcher } from "./telegramTail.js";
-import { startMarketPolling, getMarketSnapshot } from "./marketData.js";
+import {
+  startMarketPolling,
+  getMarketSnapshot,
+  validateSymbol,
+  refreshMarketData,
+} from "./marketData.js";
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from "./watchlist.js";
 import bus from "./eventBus.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,6 +41,37 @@ app.get("/api/health", (req, res) => {
 // GET /api/markets - תמונת מצב נוכחית של נתוני שוק (מדדים, סחורות, אג"ח, מובילות, בורסה, אפיקים)
 app.get("/api/markets", (req, res) => {
   res.json(getMarketSnapshot());
+});
+
+// --- רשימת הטיקר הנע - ניתנת לעריכה ע"י המשתמש ---
+
+app.get("/api/watchlist", (req, res) => {
+  res.json(getWatchlist());
+});
+
+app.post("/api/watchlist", async (req, res) => {
+  const symbol = String(req.body.symbol || "").trim().toUpperCase();
+  if (!symbol) {
+    return res.status(400).json({ error: "חסר סימול" });
+  }
+  try {
+    const { suggestedLabel } = await validateSymbol(symbol);
+    const label = String(req.body.label || "").trim() || suggestedLabel;
+    const item = addToWatchlist(symbol, label);
+    await refreshMarketData();
+    res.json(item);
+  } catch (err) {
+    res.status(400).json({ error: err.message || "סימול לא תקין" });
+  }
+});
+
+app.delete("/api/watchlist/:id", async (req, res) => {
+  const removed = removeFromWatchlist(Number(req.params.id));
+  if (!removed) {
+    return res.status(404).json({ error: "לא נמצא" });
+  }
+  await refreshMarketData();
+  res.json({ ok: true });
 });
 
 // --- SSE: עדכונים בזמן אמת ---
