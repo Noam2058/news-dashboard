@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# python venv
+telegram/venv/
+
+# secrets - לעולם לא להעלות
+telegram/.env
+
+# telegram session (מכיל אישור התחברות אישי) ונתוני ריצה
+telegram/*.session
+telegram/*.session-journal
+telegram/messages.jsonl
+
+# database (נוצר מקומית בזמן ריצה)
+backend/news.db
+backend/news.db-shm
+backend/news.db-wal
+
+# logs
+logs/
+
+# OS
+.DS_Store
