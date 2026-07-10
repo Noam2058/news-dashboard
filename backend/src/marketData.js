@@ -1,12 +1,14 @@
 import bus from "./eventBus.js";
-import { getWatchlist } from "./watchlist.js";
 
 // כל הנתונים כאן נשלפים מ-Yahoo Finance (chart API ציבורי, ללא מפתח).
 // זהו endpoint לא רשמי של Yahoo - עובד היטב לשימוש אישי אך עלול להשתנות/להיחסם.
 
 const HEADERS = { "User-Agent": "Mozilla/5.0 (news-dashboard personal use)" };
 
-// רשימת הטיקר הנע (מדדים/מטבעות/סחורות) ניתנת לעריכה ע"י המשתמש - ראה watchlist.js.
+// רשימת הטיקר הנע (מדדים/מטבעות/סחורות) נשמרת בדפדפן של כל משתמש בנפרד
+// (localStorage בפרונט) ולא בשרת - כך שעריכה של משתמש אחד לא משפיעה על אחרים.
+// getQuotes למטה משמש כ-endpoint חסר-מצב (stateless) שכל דפדפן קורא לו עם
+// הרשימה האישית שלו.
 
 const BONDS = [{ id: "us10y", symbol: "^TNX", label: '10 שנים · ארה"ב' }];
 
@@ -38,7 +40,6 @@ const QUOTE_POLL_MS = 20 * 1000; // מחירים חיים - כל 20 שניות
 const CHANNELS_POLL_MS = 6 * 60 * 60 * 1000; // תשואות 12 חודש - כל 6 שעות, כמעט לא זזות תוך-יומי
 
 let snapshot = {
-  tickers: [],
   bonds: [],
   movers: [],
   exchangeRows: [],
@@ -91,26 +92,10 @@ function pctChange(meta) {
 
 async function pollQuotes() {
   try {
-    const watchlist = getWatchlist();
-    const [watchlistRes, bondsRes, stocksRes] = await Promise.all([
-      Promise.allSettled(watchlist.map((s) => fetchChart(s.symbol))),
+    const [bondsRes, stocksRes] = await Promise.all([
       Promise.allSettled(BONDS.map((s) => fetchChart(s.symbol))),
       Promise.allSettled(STOCKS.map((s) => fetchChart(s.symbol))),
     ]);
-
-    const tickers = watchlist.map((def, i) => {
-      const r = watchlistRes[i];
-      if (r.status !== "fulfilled") return null;
-      const meta = r.value;
-      return {
-        id: String(def.id),
-        symbol: def.symbol,
-        label: def.label,
-        value: normalizePrice(meta),
-        change: pctChange(meta),
-        currency: meta.currency,
-      };
-    }).filter(Boolean);
 
     const bonds = BONDS.map((def, i) => {
       const r = bondsRes[i];
@@ -138,7 +123,6 @@ async function pollQuotes() {
 
     snapshot = {
       ...snapshot,
-      tickers,
       bonds,
       movers,
       exchangeRows: stockRows,
@@ -172,10 +156,25 @@ export function getMarketSnapshot() {
   return snapshot;
 }
 
-// בודק שסימול קיים ב-Yahoo לפני שמוסיפים אותו לרשימת המעקב, ומציע תווית ברירת מחדל.
-export async function validateSymbol(symbol) {
-  const meta = await fetchChart(symbol);
-  return { suggestedLabel: meta.shortName || meta.longName || symbol };
+// מחזיר מחיר/שינוי/שם חי לרשימת סימולים - חסר-מצב (stateless), כל דפדפן
+// קורא לזה עם רשימת הטיקר האישית שלו (שמורה ב-localStorage בצד הלקוח).
+// משמש גם לתצוגת הטיקר החי וגם לאימות סימול + הצעת תווית בהוספה חדשה.
+export async function getQuotes(symbols) {
+  const results = await Promise.allSettled(symbols.map((s) => fetchChart(s)));
+  return symbols
+    .map((symbol, i) => {
+      const r = results[i];
+      if (r.status !== "fulfilled") return null;
+      const meta = r.value;
+      return {
+        symbol,
+        label: meta.shortName || meta.longName || symbol,
+        value: normalizePrice(meta),
+        change: pctChange(meta),
+        currency: meta.currency,
+      };
+    })
+    .filter(Boolean);
 }
 
 // חיפוש חופשי לפי שם/מילת מפתח (למשל "apple" או "boeing") - מחזיר סימולים מתאימים.

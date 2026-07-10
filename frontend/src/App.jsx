@@ -2,6 +2,33 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:4000";
 
+// רשימת הטיקר הנע (מדדים/מטבעות/סחורות) - אישית לכל דפדפן, נשמרת ב-localStorage
+// ולא בשרת, כדי שעריכה של משתמש אחד לא תשפיע על משתמשים אחרים באתר.
+const WATCHLIST_STORAGE_KEY = "news-dashboard:watchlist";
+const WATCHLIST_POLL_MS = 20 * 1000;
+
+const DEFAULT_WATCHLIST = [
+  { symbol: "TA35.TA", label: 'ת"א 35' },
+  { symbol: "^TA125.TA", label: 'ת"א 125' },
+  { symbol: "ILS=X", label: "דולר/שקל" },
+  { symbol: "EURILS=X", label: "יורו/שקל" },
+  { symbol: "^GSPC", label: "S&P 500" },
+  { symbol: "BTC-USD", label: "ביטקוין" },
+  { symbol: "GC=F", label: "זהב (אונקיה)" },
+  { symbol: "CL=F", label: "נפט ברנט (חבית)" },
+  { symbol: "SI=F", label: "כסף (אונקיה)" },
+];
+
+function loadWatchlist() {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_WATCHLIST;
+  } catch {
+    return DEFAULT_WATCHLIST;
+  }
+}
+
 const SOURCE_LABELS = {
   globes: "גלובס",
   n12: "N12",
@@ -115,7 +142,6 @@ export default function App() {
     () => localStorage.getItem("theme") || "light"
   );
   const [market, setMarket] = useState({
-    tickers: [],
     bonds: [],
     movers: [],
     exchangeRows: [],
@@ -123,6 +149,8 @@ export default function App() {
     updatedAt: null,
   });
   const [weather, setWeather] = useState(null);
+  const [watchlist, setWatchlist] = useState(loadWatchlist);
+  const [tickers, setTickers] = useState([]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -133,6 +161,66 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  // הטיקר האישי: נשמר מקומית ונטען בכל שינוי + כל 20 שניות, בלי לגעת בשרת
+  // עבור אף משתמש אחר.
+  useEffect(() => {
+    localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
+  }, [watchlist]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadQuotes() {
+      if (watchlist.length === 0) {
+        setTickers([]);
+        return;
+      }
+      try {
+        const symbols = watchlist.map((w) => w.symbol).join(",");
+        const res = await fetch(
+          `${API_BASE}/api/quote?symbols=${encodeURIComponent(symbols)}`
+        );
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data)) return;
+        const bySymbol = new Map(data.map((d) => [d.symbol, d]));
+        setTickers(
+          watchlist
+            .map((w) => {
+              const q = bySymbol.get(w.symbol);
+              if (!q) return null;
+              return {
+                symbol: w.symbol,
+                label: w.label,
+                value: q.value,
+                change: q.change,
+              };
+            })
+            .filter(Boolean)
+        );
+      } catch {
+        // תקלת רשת חולפת - משאירים את הטיקר האחרון שהוצג
+      }
+    }
+
+    loadQuotes();
+    const interval = setInterval(loadQuotes, WATCHLIST_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [watchlist]);
+
+  function addTicker(symbol, label) {
+    setWatchlist((prev) => {
+      if (prev.some((w) => w.symbol === symbol)) return prev;
+      return [...prev, { symbol, label }];
+    });
+  }
+
+  function removeTicker(symbol) {
+    setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
+  }
 
   // מסנן פריטים ישנים מ-12 שעות גם בטאב שנשאר פתוח הרבה זמן,
   // כך שהוא יתעדכן בהתאם לניקוי שקורה בשרת ולא ימשיך להציג פריטים ישנים לנצח
@@ -296,7 +384,7 @@ export default function App() {
     setNotifyEnabled(perm === "granted");
   }
 
-  const marqueeItems = market.tickers;
+  const marqueeItems = tickers;
   const marqueeLoop = marqueeItems.concat(marqueeItems);
 
   return (
@@ -353,7 +441,7 @@ export default function App() {
         ) : (
           <div className="marquee-track">
             {marqueeLoop.map((t, i) => (
-              <span className="marquee-item" key={`${t.id}-${i}`}>
+              <span className="marquee-item" key={`${t.symbol}-${i}`}>
                 <span className="marquee-label">{t.label}</span>
                 <Num>{formatValue(t.value)}</Num>
                 <b style={{ color: changeColor(t.change) }}>
@@ -415,7 +503,9 @@ export default function App() {
           {activeTab === "news" && (
             <NewsFeed items={filteredItems} freshIds={freshIds} />
           )}
-          {activeTab === "markets" && <MarketsTab market={market} />}
+          {activeTab === "markets" && (
+            <MarketsTab tickers={tickers} onAdd={addTicker} onRemove={removeTicker} />
+          )}
           {activeTab === "exchange" && <ExchangeTab rows={market.exchangeRows} />}
           {activeTab === "channels" && <ChannelsTab channels={market.channels} />}
         </div>
@@ -548,7 +638,7 @@ function NewsFeed({ items, freshIds }) {
   );
 }
 
-function MarketsTab({ market }) {
+function MarketsTab({ tickers, onAdd, onRemove }) {
   const [editing, setEditing] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
   const [newLabel, setNewLabel] = useState("");
@@ -590,32 +680,32 @@ function MarketsTab({ market }) {
     setShowResults(false);
   }
 
-  async function handleRemove(id) {
-    setBusy(true);
-    try {
-      await fetch(`${API_BASE}/api/watchlist/${id}`, { method: "DELETE" });
-    } finally {
-      setBusy(false);
-    }
+  function handleRemove(symbol) {
+    onRemove(symbol);
   }
 
   async function handleAdd(e) {
     e.preventDefault();
-    const symbol = newSymbol.trim();
+    const symbol = newSymbol.trim().toUpperCase();
     if (!symbol) return;
+    if (tickers.some((t) => t.symbol === symbol)) {
+      setError("הסימול הזה כבר ברשימה");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/watchlist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol, label: newLabel.trim() }),
-      });
+      // מאמתים שהסימול קיים ב-Yahoo ומקבלים שם מוצע, לפני שמוסיפים לרשימה האישית.
+      const res = await fetch(
+        `${API_BASE}/api/quote?symbols=${encodeURIComponent(symbol)}`
+      );
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "שגיאה בהוספה");
+      if (!Array.isArray(data) || data.length === 0) {
+        setError(`הסימול ${symbol} לא נמצא`);
         return;
       }
+      const label = newLabel.trim() || data[0].label;
+      onAdd(symbol, label);
       setNewSymbol("");
       setNewLabel("");
       setSearchResults([]);
@@ -636,15 +726,14 @@ function MarketsTab({ market }) {
         </button>
       </div>
       <div className="ticker-grid">
-        {market.tickers.map((t) => (
-          <div className="ticker-card" key={t.id}>
+        {tickers.map((t) => (
+          <div className="ticker-card" key={t.symbol}>
             {editing && (
               <button
                 type="button"
                 className="ticker-remove"
-                onClick={() => handleRemove(t.id)}
+                onClick={() => handleRemove(t.symbol)}
                 aria-label={`הסר ${t.label}`}
-                disabled={busy}
               >
                 ✕
               </button>

@@ -8,11 +8,9 @@ import { startTelegramWatcher } from "./telegramTail.js";
 import {
   startMarketPolling,
   getMarketSnapshot,
-  validateSymbol,
+  getQuotes,
   searchSymbols,
-  refreshMarketData,
 } from "./marketData.js";
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from "./watchlist.js";
 import bus from "./eventBus.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,10 +42,23 @@ app.get("/api/markets", (req, res) => {
   res.json(getMarketSnapshot());
 });
 
-// --- רשימת הטיקר הנע - ניתנת לעריכה ע"י המשתמש ---
+// --- טיקר אישי לכל משתמש - נשמר ב-localStorage בצד הלקוח, לא בשרת ---
+// ה-endpoints כאן חסרי-מצב (stateless): כל דפדפן שולח את רשימת הסימולים
+// שלו וזה חוזר, בלי לשמור/לשתף שום דבר בין משתמשים.
 
-app.get("/api/watchlist", (req, res) => {
-  res.json(getWatchlist());
+// GET /api/quote?symbols=AAPL,TA35.TA - מחיר/שינוי/שם חי לרשימת סימולים
+app.get("/api/quote", async (req, res) => {
+  const symbols = String(req.query.symbols || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 40);
+  if (symbols.length === 0) return res.json([]);
+  try {
+    res.json(await getQuotes(symbols));
+  } catch (err) {
+    res.status(500).json({ error: err.message || "שגיאה בשליפת נתונים" });
+  }
 });
 
 // GET /api/watchlist/search?q=apple - חיפוש חופשי לפי שם/מילת מפתח
@@ -60,31 +71,6 @@ app.get("/api/watchlist/search", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message || "שגיאת חיפוש" });
   }
-});
-
-app.post("/api/watchlist", async (req, res) => {
-  const symbol = String(req.body.symbol || "").trim().toUpperCase();
-  if (!symbol) {
-    return res.status(400).json({ error: "חסר סימול" });
-  }
-  try {
-    const { suggestedLabel } = await validateSymbol(symbol);
-    const label = String(req.body.label || "").trim() || suggestedLabel;
-    const item = addToWatchlist(symbol, label);
-    await refreshMarketData();
-    res.json(item);
-  } catch (err) {
-    res.status(400).json({ error: err.message || "סימול לא תקין" });
-  }
-});
-
-app.delete("/api/watchlist/:id", async (req, res) => {
-  const removed = removeFromWatchlist(Number(req.params.id));
-  if (!removed) {
-    return res.status(404).json({ error: "לא נמצא" });
-  }
-  await refreshMarketData();
-  res.json({ ok: true });
 });
 
 // --- SSE: עדכונים בזמן אמת ---
