@@ -554,6 +554,41 @@ function MarketsTab({ market }) {
   const [newLabel, setNewLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+
+  // חיפוש חופשי (למשל "apple"/"boeing") עם debounce - שולף התאמות מ-Yahoo Finance
+  useEffect(() => {
+    const query = newSymbol.trim();
+    if (!query || !showResults) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/watchlist/search?q=${encodeURIComponent(query)}`
+        );
+        const data = await res.json();
+        setSearchResults(Array.isArray(data) ? data : []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [newSymbol, showResults]);
+
+  function selectSearchResult(r) {
+    setNewSymbol(r.symbol);
+    setNewLabel(r.name);
+    setSearchResults([]);
+    setShowResults(false);
+  }
 
   async function handleRemove(id) {
     setBusy(true);
@@ -583,6 +618,8 @@ function MarketsTab({ market }) {
       }
       setNewSymbol("");
       setNewLabel("");
+      setSearchResults([]);
+      setShowResults(false);
     } catch {
       setError("שגיאת רשת");
     } finally {
@@ -624,13 +661,43 @@ function MarketsTab({ market }) {
       </div>
       {editing && (
         <form className="ticker-add-form" onSubmit={handleAdd}>
-          <input
-            type="text"
-            placeholder="סימול (למשל AAPL)"
-            value={newSymbol}
-            onChange={(e) => setNewSymbol(e.target.value)}
-            disabled={busy}
-          />
+          <div className="ticker-search-wrap">
+            <input
+              type="text"
+              placeholder="חיפוש: apple, boeing, AAPL…"
+              value={newSymbol}
+              onChange={(e) => {
+                setNewSymbol(e.target.value);
+                setShowResults(true);
+              }}
+              onFocus={() => newSymbol.trim() && setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 150)}
+              disabled={busy}
+              autoComplete="off"
+            />
+            {showResults && (searching || searchResults.length > 0) && (
+              <div className="ticker-search-results">
+                {searching && (
+                  <div className="ticker-search-loading">מחפש…</div>
+                )}
+                {!searching &&
+                  searchResults.map((r) => (
+                    <button
+                      type="button"
+                      key={r.symbol}
+                      className="ticker-search-item"
+                      onClick={() => selectSearchResult(r)}
+                    >
+                      <span className="ticker-search-symbol">{r.symbol}</span>
+                      <span className="ticker-search-name">{r.name}</span>
+                      {r.exchange && (
+                        <span className="ticker-search-exchange">{r.exchange}</span>
+                      )}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
           <input
             type="text"
             placeholder="תווית (אופציונלי)"

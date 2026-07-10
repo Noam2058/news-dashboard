@@ -178,6 +178,24 @@ export async function validateSymbol(symbol) {
   return { suggestedLabel: meta.shortName || meta.longName || symbol };
 }
 
+// חיפוש חופשי לפי שם/מילת מפתח (למשל "apple" או "boeing") - מחזיר סימולים מתאימים.
+export async function searchSymbols(query) {
+  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(
+    query
+  )}&quotesCount=8&newsCount=0`;
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) throw new Error(`HTTP ${res.status} בחיפוש`);
+  const data = await res.json();
+  const quotes = data?.quotes || [];
+  return quotes
+    .filter((q) => q.symbol && (q.shortname || q.longname))
+    .map((q) => ({
+      symbol: q.symbol,
+      name: q.shortname || q.longname,
+      exchange: q.exchDisp || q.exchange || "",
+    }));
+}
+
 export async function refreshMarketData() {
   await pollQuotes();
 }

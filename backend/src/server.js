@@ -9,6 +9,7 @@ import {
   startMarketPolling,
   getMarketSnapshot,
   validateSymbol,
+  searchSymbols,
   refreshMarketData,
 } from "./marketData.js";
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from "./watchlist.js";
@@ -47,6 +48,18 @@ app.get("/api/markets", (req, res) => {
 
 app.get("/api/watchlist", (req, res) => {
   res.json(getWatchlist());
+});
+
+// GET /api/watchlist/search?q=apple - חיפוש חופשי לפי שם/מילת מפתח
+app.get("/api/watchlist/search", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.json([]);
+  try {
+    const results = await searchSymbols(q);
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message || "שגיאת חיפוש" });
+  }
 });
 
 app.post("/api/watchlist", async (req, res) => {
