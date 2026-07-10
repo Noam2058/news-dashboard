@@ -71,7 +71,7 @@ function formatValue(value) {
 }
 
 function formatChange(change) {
-  return `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`;
+  return `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
 }
 
 function changeColor(change) {
