@@ -674,4 +674,24 @@ body {
   .ticker-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  /* clock-group (שעה + מזג אוויר + כפתור מצב כהה) הוא יחידה שלא נשברת -
+     ברוחב טלפון היא רחבה מדי ודוחפת את כל העמוד הצידה. נותנים לה לגלוש לשורה נוספת. */
+  .clock-group {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand {
+    font-size: 38px;
+  }
+  .nameplate,
+  .kicker-strip,
+  .aside,
+  .sidebar,
+  .main-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
