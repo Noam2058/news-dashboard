@@ -28,6 +28,7 @@ CHANNELS = [
     "Political_arena",
     "firstreportsnews",
     "N12chat",
+    "amitsegal",
 ]
 
 OUTPUT_FILE = "messages.jsonl"
