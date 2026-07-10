@@ -49,7 +49,13 @@ ln -s /etc/nginx/sites-available/news-dashboard /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 certbot --nginx -d <your-domain> -d www.<your-domain>
 ```
-certbot יתקין תעודת HTTPS חינמית ויחדש אותה אוטומטית.
+certbot יתקין תעודת HTTPS חינמית ויחדש אותה אוטומטית, ויוסיף הפניית HTTP→HTTPS.
+
+**אם הדומיין מנוהל דרך Cloudflare (proxy מופעל, ה-A record מצביע ל-IP של Cloudflare
+ולא של השרת):** ודא/י שמצב ההצפנה תחת SSL/TLS → Overview מוגדר ל-**Full (strict)**
+ולא Flexible - אחרת ה-redirect ל-HTTPS שה-certbot מוסיף יגרום ללולאת הפניות אינסופית
+(Cloudflare מדבר HTTP עם השרת ב-Flexible, השרת מפנה בחזרה ל-HTTPS, וחוזר חלילה).
+עם Full (strict) הבעיה נעלמת כי גם Cloudflare↔שרת עובר ב-HTTPS.
 
 ### 8. בדיקה
 פתח את `https://<your-domain>` בדפדפן — אמור לראות את הדשבורד החי.
